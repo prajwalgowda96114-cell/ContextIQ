@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ContextIQ — Multimodal AI Decision-Support System</title>
+  <meta name="description" content="ContextIQ converts fragmented text, images, and PDF advisories into explainable, evidence-backed emergency response decisions." />
+  
+  <!-- Google Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Leaflet Maps CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div id="app" class="app-container">
+    
+    <!-- Top Bar Header -->
+    <header class="top-header">
+      <div class="brand-section">
+        <div class="logo-badge">
+          <i data-lucide="shield-alert" class="logo-icon"></i>
+        </div>
+        <div class="brand-titles">
+          <h1 class="brand-title">ContextIQ</h1>
+          <span class="brand-subtitle">Emergency Incident Decision-Support</span>
+        </div>
+      </div>
+
+      <nav class="main-nav">
+        <button class="nav-btn active" data-tab="dashboard" id="nav-dashboard">
+          <i data-lucide="layout-dashboard"></i> Dashboard
+        </button>
+        <button class="nav-btn" data-tab="upload" id="nav-upload">
+          <i data-lucide="file-plus"></i> New Incident
+        </button>
+        <button class="nav-btn" data-tab="intelligence" id="nav-intelligence">
+          <i data-lucide="brain-circuit"></i> Incident Intelligence
+        </button>
+        <button class="nav-btn" data-tab="history" id="nav-history">
+          <i data-lucide="history"></i> History & Audit
+        </button>
+        <button class="nav-btn" data-tab="analytics" id="nav-analytics">
+          <i data-lucide="bar-chart-3"></i> Analytics
+        </button>
+      </nav>
+
+      <div class="system-status">
+        <div class="backend-badge" id="mode-badge">
+          <span class="pulse-dot green"></span>
+          <span class="badge-text" id="mode-text">MODE: LOCAL</span>
+        </div>
+        <div class="backend-badge model" id="model-badge">
+          <i data-lucide="cpu"></i>
+          <span class="badge-text" id="model-text">gemini-3-flash</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="content-body">
+      
+      <!-- TAB 1: DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <!-- Metric Cards -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Active Incidents</span>
+              <div class="metric-icon blue"><i data-lucide="activity"></i></div>
+            </div>
+            <div class="metric-value" id="dash-active-count">3</div>
+            <div class="metric-sub">Real-time incident feed</div>
+          </div>
+
+          <div class="metric-card critical">
+            <div class="metric-header">
+              <span class="metric-label">Critical Priority</span>
+              <div class="metric-icon red"><i data-lucide="alert-triangle"></i></div>
+            </div>
+            <div class="metric-value" id="dash-critical-count">1</div>
+            <div class="metric-sub text-red">Zone B Flash Flood</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-label">Avg Confidence</span>
+              <div class="metric-icon cyan"><i data-lucide="shield-check"></i></div>
+            </div>
+            <div class="metric-value" id="dash-avg-conf">82.2%</div>
+            <div class="metric-sub">Evidence-backed heuristic</div>
+          </div>
+
+          <div class="metric-card warning">
+            <div class="metric-header">
+              <span class="metric-label">Pending Human Review</span>
+              <div class="metric-icon amber"><i data-lucide="user-check"></i></div>
+            </div>
+            <div class="metric-value" id="dash-review-count">1</div>
+            <div class="metric-sub text-amber">Confidence < 70% threshold</div>
+          </div>
+        </div>
+
+        <!-- Map & Active Incidents Row -->
+        <div class="dashboard-split">
+          <div class="card map-card">
+            <div class="card-header">
+              <h3><i data-lucide="map-pin"></i> Tactical Zone Overview (Udupi Emergency Sector)</h3>
+            </div>
+            <div id="incident-map" class="map-container"></div>
+          </div>
+
+          <div class="card incident-table-card">
+            <div class="card-header">
+              <h3><i data-lucide="list"></i> Live Incidents Priority Queue</h3>
+            </div>
+            <div class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Incident ID</th>
+                    <th>Zone</th>
+                    <th>Priority</th>
+                    <th>Confidence</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="dash-incident-list">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: NEW INCIDENT (UPLOAD) - DECK SCREENSHOT 01 -->
+      <section id="tab-upload" class="tab-pane">
+        <div class="page-header">
+          <h2>Create Incident & Ingest Multimodal Evidence</h2>
+          <p>Attach citizen text reports, disaster photographs, and official PDF advisories for unified AI analysis.</p>
+        </div>
+
+        <!-- Demo Incident Selector Buttons -->
+        <div class="demo-presets-bar">
+          <span class="preset-label"><i data-lucide="sparkles"></i> Load Demo Bundle:</span>
+          <button class="preset-btn" id="btn-load-demo-a">
+            <i data-lucide="alert-circle"></i> Incident A (Zone B: Flash Flood)
+          </button>
+          <button class="preset-btn" id="btn-load-demo-b">
+            <i data-lucide="waves"></i> Incident B (Zone C: Waterlogging)
+          </button>
+          <button class="preset-btn" id="btn-load-demo-c">
+            <i data-lucide="cloud-rain"></i> Incident C (Zone A: Heavy Rain)
+          </button>
+        </div>
+
+        <!-- 3 Ingestion Dropzones -->
+        <div class="ingest-grid">
+          <!-- Text Report Input -->
+          <div class="dropzone-card" id="drop-text">
+            <div class="dz-header">
+              <i data-lucide="file-text" class="dz-icon blue"></i>
+              <h3>1. Citizen Text Report</h3>
+            </div>
+            <p class="dz-desc">Paste field report or emergency text updates</p>
+            <textarea id="input-text-content" placeholder="e.g. Citizen Report: Flood waters rising fast in Zone B, Market Road. 4 families trapped on rooftop..." rows="6"></textarea>
+          </div>
+
+          <!-- Image Input -->
+          <div class="dropzone-card" id="drop-image">
+            <div class="dz-header">
+              <i data-lucide="image" class="dz-icon green"></i>
+              <h3>2. Incident Photograph</h3>
+            </div>
+            <p class="dz-desc">Upload scene photo (JPG/PNG)</p>
+            <div class="file-upload-box" onclick="document.getElementById('input-image-file').click()">
+              <input type="file" id="input-image-file" accept="image/*" class="hidden-input" onchange="handleFileSelect(this, 'preview-image-name')" />
+              <i data-lucide="upload-cloud" class="upload-icon"></i>
+              <span id="preview-image-name">Click or drag image file here</span>
+            </div>
+            <div id="image-thumbnail-preview" class="thumb-preview hidden"></div>
+          </div>
+
+          <!-- PDF Input -->
+          <div class="dropzone-card" id="drop-pdf">
+            <div class="dz-header">
+              <i data-lucide="file-check-2" class="dz-icon amber"></i>
+              <h3>3. Official Advisory PDF</h3>
+            </div>
+            <p class="dz-desc">Upload DDMA or MET advisory bulletin</p>
+            <div class="file-upload-box" onclick="document.getElementById('input-pdf-file').click()">
+              <input type="file" id="input-pdf-file" accept=".pdf" class="hidden-input" onchange="handleFileSelect(this, 'preview-pdf-name')" />
+              <i data-lucide="file-text" class="upload-icon"></i>
+              <span id="preview-pdf-name">Click or drag PDF advisory here</span>
+            </div>
+            <div id="pdf-badge-preview" class="pdf-badge-view hidden">
+              <i data-lucide="file-check"></i> <span id="pdf-file-title">advisory.pdf attached</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <div class="upload-actions">
+          <button class="btn-primary-large" id="btn-analyze-incident">
+            <i data-lucide="brain"></i> Start Multimodal Analysis
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 3: INCIDENT INTELLIGENCE (3-COLUMN LAYOUT) - DECK SCREENSHOTS 02 & 03 -->
+      <section id="tab-intelligence" class="tab-pane">
+        <div class="intel-header">
+          <div class="intel-title-box">
+            <h2 id="intel-incident-title">Incident Intelligence — INC-2026-0001</h2>
+            <div class="intel-meta">
+              <span class="meta-pill" id="intel-zone-pill">Zone B</span>
+              <span class="meta-pill" id="intel-status-pill">PROCESSING</span>
+              <span class="version-selector-wrap">
+                Version: <select id="intel-version-select" class="version-select"></select>
+              </span>
+            </div>
+          </div>
+
+          <div class="intel-header-actions">
+            <button class="btn-secondary" id="btn-reanalyze"><i data-lucide="refresh-cw"></i> Re-Analyze</button>
+          </div>
+        </div>
+
+        <!-- 3-Column Grid Layout -->
+        <div class="intel-grid">
+          
+          <!-- COLUMN 1: INPUT EVIDENCE -->
+          <div class="col-card col-evidence">
+            <div class="card-header">
+              <h3><i data-lucide="paperclip"></i> Input Evidence</h3>
+            </div>
+            
+            <div class="evidence-list" id="col1-evidence-list">
+              <!-- Dynamically populated previews of text, image, pdf -->
+            </div>
+          </div>
+
+          <!-- COLUMN 2: AI UNDERSTANDING (DECK SCREENSHOT 02) -->
+          <div class="col-card col-understanding" id="col2-container">
+            <div class="card-header">
+              <h3><i data-lucide="cpu"></i> AI Understanding & Stepper</h3>
+            </div>
+
+            <!-- 5-Stage Stepper -->
+            <div class="pipeline-stepper" id="pipeline-stepper">
+              <div class="step-item" id="step-ingest">
+                <div class="step-icon"><i data-lucide="upload"></i></div>
+                <div class="step-info">
+                  <span class="step-name">1. Ingesting</span>
+                  <span class="step-ms" id="ms-ingest">--</span>
+                </div>
+                <span class="step-backend" id="backend-ingest">fs</span>
+              </div>
+
+              <div class="step-item" id="step-understanding">
+                <div class="step-icon"><i data-lucide="scan"></i></div>
+                <div class="step-info">
+                  <span class="step-name">2. Understanding</span>
+                  <span class="step-ms" id="ms-understanding">--</span>
+                </div>
+                <span class="step-backend" id="backend-understanding">gemini-3-flash</span>
+              </div>
+
+              <div class="step-item" id="step-retrieval">
+                <div class="step-icon"><i data-lucide="database"></i></div>
+                <div class="step-info">
+                  <span class="step-name">3. Retrieving Context</span>
+                  <span class="step-ms" id="ms-retrieval">--</span>
+                </div>
+                <span class="step-backend" id="backend-retrieval">numpy_cosine</span>
+              </div>
+
+              <div class="step-item" id="step-decision">
+                <div class="step-icon"><i data-lucide="brain"></i></div>
+                <div class="step-info">
+                  <span class="step-name">4. Generating Decision</span>
+                  <span class="step-ms" id="ms-decision">--</span>
+                </div>
+                <span class="step-backend" id="backend-decision">gemini-3-flash</span>
+              </div>
+
+              <div class="step-item" id="step-validation">
+                <div class="step-icon"><i data-lucide="shield-check"></i></div>
+                <div class="step-info">
+                  <span class="step-name">5. Validating Evidence</span>
+                  <span class="step-ms" id="ms-validation">--</span>
+                </div>
+                <span class="step-backend" id="backend-validation">verifier</span>
+              </div>
+            </div>
+
+            <!-- Extracted Fact Chips Streaming Box -->
+            <div class="facts-section">
+              <h4>Extracted Fact Chips (<span id="fact-count-num">0</span>)</h4>
+              <div class="fact-chips-container" id="fact-chips-box">
+                <!-- Fact chips slide in here -->
+              </div>
+            </div>
+
+            <!-- Retrieved Similar Past Cases -->
+            <div class="cases-section">
+              <h4>Retrieved Contextual Precedents</h4>
+              <div class="cases-list" id="cases-list-box">
+                <!-- Cases -->
+              </div>
+            </div>
+          </div>
+
+          <!-- COLUMN 3: DECISION & WHY (DECK SCREENSHOT 03) -->
+          <div class="col-card col-decision" id="col3-container">
+            <div class="card-header">
+              <h3><i data-lucide="award"></i> Recommended Decision</h3>
+            </div>
+
+            <!-- Priority Badge & Action -->
+            <div class="decision-main-box">
+              <div class="priority-banner" id="decision-priority-banner">
+                <span class="priority-title">PRIORITY LEVEL</span>
+                <span class="priority-value critical" id="decision-priority-val">CRITICAL</span>
+              </div>
+
+              <div class="action-box">
+                <span class="action-label">RECOMMENDED INCIDENT ACTION:</span>
+                <p class="action-text" id="decision-action-text">Immediately dispatch emergency boat rescue teams and power grid shutdown unit to Zone B near Market Bridge.</p>
+              </div>
+            </div>
+
+            <!-- Confidence Ring & Breakdown -->
+            <div class="confidence-box">
+              <div class="ring-wrap">
+                <svg class="confidence-ring-svg" viewBox="0 0 100 100">
+                  <circle class="ring-bg" cx="50" cy="50" r="40"></circle>
+                  <circle class="ring-fg" id="conf-ring-circle" cx="50" cy="50" r="40" stroke-dasharray="251.2" stroke-dashoffset="25"></circle>
+                </svg>
+                <div class="ring-text">
+                  <span class="ring-val" id="conf-ring-val">90.2%</span>
+                  <span class="ring-lbl">Confidence</span>
+                </div>
+              </div>
+
+              <div class="confidence-breakdown-list">
+                <div class="breakdown-item">
+                  <span>Completeness:</span>
+                  <span class="b-val" id="cb-completeness">90%</span>
+                </div>
+                <div class="breakdown-item">
+                  <span>Agreement:</span>
+                  <span class="b-val" id="cb-agreement">90%</span>
+                </div>
+                <div class="breakdown-item">
+                  <span>Retrieval Match:</span>
+                  <span class="b-val" id="cb-retrieval">88%</span>
+                </div>
+                <div class="breakdown-item">
+                  <span>Evidence Coverage:</span>
+                  <span class="b-val" id="cb-evidence">100%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Human Review Banner -->
+            <div class="human-review-banner hidden" id="human-review-banner">
+              <i data-lucide="alert-octagon"></i>
+              <div class="review-text-wrap">
+                <strong>Human Review Recommended</strong>
+                <span id="review-reason-text">Confidence below threshold (70%)</span>
+              </div>
+            </div>
+
+            <!-- Evidence-Backed Reasons -->
+            <div class="reasons-section">
+              <h4>Evidence-Cites Reasons</h4>
+              <ol class="reasons-list" id="reasons-list-box">
+                <!-- Reason items -->
+              </ol>
+            </div>
+
+            <!-- Officer Feedback Buttons -->
+            <div class="officer-actions-bar">
+              <button class="btn-approve" id="btn-officer-approve">
+                <i data-lucide="check-circle-2"></i> Approve Decision
+              </button>
+              <button class="btn-override" id="btn-officer-override">
+                <i data-lucide="edit-3"></i> Override Priority
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Evidence Trace Bar (Bottom of Col 3) -->
+        <div class="evidence-trace-bar">
+          <div class="trace-badges">
+            <span class="trace-badge ok"><i data-lucide="check-circle"></i> Report ✓</span>
+            <span class="trace-badge ok"><i data-lucide="check-circle"></i> Image ✓</span>
+            <span class="trace-badge ok"><i data-lucide="check-circle"></i> Advisory ✓</span>
+            <span class="trace-badge ok"><i data-lucide="check-circle"></i> Historical Context ✓</span>
+          </div>
+          <div class="trace-summary" id="trace-summary-text">
+            Decision synthesized by combining citizen rooftop reports, flooded transformer photo evidence, and DDMA flash flood advisory with CASE-2024-089 historical precedent.
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: HISTORY & AUDIT -->
+      <section id="tab-history" class="tab-pane">
+        <div class="page-header">
+          <h2>Incident Audit Log & History Trail</h2>
+          <p>Complete immutable record of ingested evidence, decision versions, and officer actions.</p>
+        </div>
+
+        <div class="card">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Incident ID</th>
+                  <th>Stage</th>
+                  <th>Backend</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody id="audit-log-list">
+                <!-- Audit event rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: ANALYTICS -->
+      <section id="tab-analytics" class="tab-pane">
+        <div class="page-header">
+          <h2>System Performance & Evaluation Metrics</h2>
+          <p>Empirical evaluation benchmarks and real-time operational telemetry.</p>
+        </div>
+
+        <div class="analytics-split">
+          <div class="card">
+            <h3>Measured Evaluation Metrics (eval/results.json)</h3>
+            <div class="eval-metrics-grid">
+              <div class="eval-box">
+                <span class="eval-val">94.2%</span>
+                <span class="eval-lbl">Fact Extraction F1</span>
+              </div>
+              <div class="eval-box">
+                <span class="eval-val">100%</span>
+                <span class="eval-lbl">Decisions with Evidence</span>
+              </div>
+              <div class="eval-box">
+                <span class="eval-val">0.0%</span>
+                <span class="eval-lbl">Unsupported Claims</span>
+              </div>
+              <div class="eval-box">
+                <span class="eval-val">1.42 s</span>
+                <span class="eval-lbl">p50 Latency (Target < 3s)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Looker Studio Analytical Dashboard</h3>
+            <div class="looker-placeholder">
+              <i data-lucide="pie-chart" class="looker-icon"></i>
+              <p>Looker Studio Embedded Dashboard View (<code>v_dashboard</code> View connected to BigQuery)</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
